@@ -36,42 +36,32 @@ int initSDL(SDL_Window **window)
 	return 0;
 }
 
+void checkKeyboard(Tank *tank, bool *loop)
+{
+	Uint8 *key=SDL_GetKeyboardState(NULL);
+	if(key[SDL_SCANCODE_ESCAPE])
+		*loop=false;
+	if(key[SDL_SCANCODE_A])
+		tank->move3i(-5, 0, 0);
+	if(key[SDL_SCANCODE_D])
+		tank->move3i(5, 0, 0);
+	if(key[SDL_SCANCODE_W])
+		tank->move3i(0, 5, 0);
+	if(key[SDL_SCANCODE_S])
+		tank->move3i(0, -5, 0);
+	if(key[SDL_SCANCODE_E])
+		tank->rotate(-5.0f);
+	if(key[SDL_SCANCODE_Q])
+		tank->rotate(5.0f);
+	if(key[SDL_SCANCODE_F])
+		tank->shoot();
+
+}
+
 void handleSDLEvent(SDL_Event *event, bool *loop, Tank *tank)
 {
 	switch(event->type)
 	{
-		case SDL_KEYDOWN:
-			switch(event->key.keysym.sym)
-			{
-				case SDLK_ESCAPE:
-					*loop=false;
-					break;
-				case SDLK_a:
-					tank->move3i(-5, 0, 0);
-					break;
-				case SDLK_d:
-					tank->move3i(5, 0, 0);
-					break;
-				case SDLK_w:
-					tank->move3i(0, 5, 0);
-					break;
-				case SDLK_s:
-					tank->move3i(0, -5, 0);
-					break;
-				case SDLK_e:
-					tank->rotate(-5.0f);
-					break;
-				case SDLK_q:
-					tank->rotate(5.0f);
-					break;
-				case SDLK_f:
-					tank->shoot();
-					break;
-				
-				default:
-					break;
-			}
-			break;
 		case SDL_QUIT:
 			*loop=false;
 			break;
@@ -408,6 +398,7 @@ int main(int argc, char **argv)
 	while(loop)
 	{
 		atick=SDL_GetTicks();
+		checkKeyboard(tank, &loop);
 		if(SDL_PollEvent(&eventSDL))
 		{
 			handleSDLEvent(&eventSDL, &loop, tank);

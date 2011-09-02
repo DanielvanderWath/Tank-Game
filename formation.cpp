@@ -54,7 +54,6 @@ bool Formation::checkCollision(int *bangCoords)
 				{
 					//collision occurred
 					(*i)->hit();
-					printf("BOOOOM!!  %d\n", (*i)->getHP());
 					if((*i)->getHP() <= 0)
 					{
 						delete *i;
