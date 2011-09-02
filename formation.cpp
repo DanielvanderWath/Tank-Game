@@ -1,0 +1,83 @@
+#include "formation.h"
+#include "baddy.h"
+#include "tankgame.h"
+
+Formation::Formation(int width, int height, int *Coords)
+{
+	int spacing[3] = {10, 40, 2};
+	
+	velocity[0]=5;
+	velocity[1]=-15;
+	baddySize=GAMESIZE*BADDYSCALE;
+
+	for(int i=0; i<3; i++)
+		coords[i]=Coords[i];
+	
+	
+	for(int h=0; h<height; h++)
+		for(int w=0; w<width; w++)
+		{
+			int formcoord[3]={(baddySize+spacing[0])*w, (baddySize+spacing[1])*h, 0};
+
+			Baddy *temp=new Baddy(2, formcoord);
+			baddies.push_back(temp);
+		}
+}
+
+int Formation::getFurthest(int axis)
+{
+	//work out where the right edge of the rightmost baddy is.
+	int rightMost=0;
+	for(list<Baddy*>::iterator i=baddies.begin(); i!=baddies.end(); i++)
+	{
+		if(rightMost< (*i)->getC(axis))
+			rightMost=(*i)->getC(axis);
+	}
+
+	return rightMost+baddySize;
+
+}
+
+bool Formation::checkCollision(int *bangCoords)
+{
+	//first check if the bullet is somewhere within the bounds of the formation
+	if(bangCoords[0] > coords[0] && bangCoords[0] < coords[0]+getFurthest(0) && bangCoords[1] > coords[1] && bangCoords[1] < coords[1]+getFurthest(1))
+	{
+		//then see if it hit a baddy
+		for(list<Baddy*>::iterator i=baddies.begin(); i!=baddies.end(); i++)
+		{
+			int baddyCoords[]={coords[0], coords[1], coords[2]};
+			int baddyRadius=baddySize/2;	
+			(*i)->addFormCoords(baddyCoords);
+			if(bangCoords[0] > baddyCoords[0] - baddyRadius && bangCoords[0] < baddyCoords[0] + baddyRadius )
+				if(bangCoords[1] > baddyCoords[1] - baddyRadius && bangCoords[1] < baddyCoords[1] + baddyRadius )
+				{
+					//collision occurred
+					(*i)->hit();
+					printf("BOOOOM!!  %d\n", (*i)->getHP());
+					if((*i)->getHP() <= 0)
+					{
+						delete *i;
+						i=baddies.erase(i);
+					}
+					return true;
+				}	
+		}
+	}
+	return false;
+}
+
+void Formation::move()
+{
+	//move horizontally
+	coords[0]+=velocity[0];
+
+	
+	//check for collision with the edge of the screen, if so then move down a bit
+	if(coords[0] < 0 || coords[0]+getFurthest(0) > GAMESIZE)
+	{
+		coords[1]+=velocity[1];
+		velocity[0]*=-1.0f;
+	}
+}
+

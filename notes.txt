@@ -1,0 +1,1 @@
+Tank rotates, bullets bounce off walls.
