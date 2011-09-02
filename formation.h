@@ -18,6 +18,8 @@ public:
 	bool checkCollision(int *bangCoords);
 	int draw(int phase);
 	int getFurthest(int axis);
-	void move();
+	int getNearest(int axis);
+	bool move();
+	bool allDead();
 };
 #endif

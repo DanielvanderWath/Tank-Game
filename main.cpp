@@ -367,7 +367,7 @@ int main(int argc, char **argv)
 	SDL_Window *window=NULL;
 	SDL_GLContext contextGL=NULL;
 	SDL_Event eventSDL;
-	bool loop=true;
+	bool loop=true, gameover=false;
 	unsigned int atick=0, btick=0;
 	int wait, phase=0;
 	Formation *baddies = NULL;
@@ -390,10 +390,9 @@ int main(int argc, char **argv)
 	
 	//and a formation of baddies
 	{
-		int baddyCoords[3]={10, 800, 0};
+		int baddyCoords[3]={60, 800, 0};
 		baddies= new Formation(8, 4, baddyCoords);
 	}
-
 	
 	while(loop)
 	{
@@ -404,16 +403,30 @@ int main(int argc, char **argv)
 			handleSDLEvent(&eventSDL, &loop, tank);
 		}
 		display(window, tank, baddies, phase++);
-		tank->moveBullets(baddies);
-		tank->tick();
+		//keep drawing and taking keyboard input, but don't move anything or quit (just yet)
+		if(!gameover)
+		{
+			tank->moveBullets(baddies);
+			if(baddies->allDead())
+			{
+				printf("WOOOO, YEAH BOI!!!! YOU RAWK!!!\n");
+				gameover=true;
+			}
+			tank->tick();
 
-		baddies->move();		
-		
+			//don't move on the tick that the last one dies
+			if(!gameover)
+				if(baddies->move())
+				{
+					printf("YOU LOSE NOOB!\n");
+					gameover=true;		
+				}
+		}
 		btick=SDL_GetTicks();
 		wait=(1000.0f/60.0f)-(btick-atick);
 		SDL_Delay(wait > 0 ? wait : 0);
+		
 	}
-	
 
 }
 

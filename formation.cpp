@@ -4,15 +4,14 @@
 
 Formation::Formation(int width, int height, int *Coords)
 {
-	int spacing[3] = {10, 40, 2};
+	int spacing[3] = {25, 40, 2};
 	
-	velocity[0]=5;
+	velocity[0]=3;
 	velocity[1]=-15;
-	baddySize=GAMESIZE*BADDYSCALE;
+	baddySize=50;
 
 	for(int i=0; i<3; i++)
 		coords[i]=Coords[i];
-	
 	
 	for(int h=0; h<height; h++)
 		for(int w=0; w<width; w++)
@@ -24,6 +23,19 @@ Formation::Formation(int width, int height, int *Coords)
 		}
 }
 
+int Formation::getNearest(int axis)
+{
+	//work out where the right edge of the rightmost baddy is.
+	int leftMost=GAMESIZE;
+	for(list<Baddy*>::iterator i=baddies.begin(); i!=baddies.end(); i++)
+	{
+		if(leftMost> (*i)->getC(axis))
+			leftMost=(*i)->getC(axis);
+	}
+
+	return leftMost-baddySize/2;
+
+}
 int Formation::getFurthest(int axis)
 {
 	//work out where the right edge of the rightmost baddy is.
@@ -34,7 +46,7 @@ int Formation::getFurthest(int axis)
 			rightMost=(*i)->getC(axis);
 	}
 
-	return rightMost+baddySize;
+	return rightMost+baddySize/2;
 
 }
 
@@ -66,17 +78,27 @@ bool Formation::checkCollision(int *bangCoords)
 	return false;
 }
 
-void Formation::move()
+bool Formation::allDead()
 {
+	return baddies.empty();
+}
+
+bool Formation::move()
+{//return true if y coordinate goes below YBOUND
 	//move horizontally
 	coords[0]+=velocity[0];
 
 	
 	//check for collision with the edge of the screen, if so then move down a bit
-	if(coords[0] < 0 || coords[0]+getFurthest(0) > GAMESIZE)
+	if(coords[0]+getNearest(0) < 0 || coords[0]+getFurthest(0) > GAMESIZE)
 	{
 		coords[1]+=velocity[1];
 		velocity[0]*=-1.0f;
 	}
+
+	if(coords[1]-getNearest(1) < YBOUND)
+		return true;
+
+	return false;
 }
 
