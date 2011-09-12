@@ -66,11 +66,6 @@ bool Formation::checkCollision(int *bangCoords)
 				{
 					//collision occurred
 					(*i)->hit();
-					if((*i)->getHP() <= 0)
-					{
-						delete *i;
-						i=baddies.erase(i);
-					}
 					return true;
 				}	
 		}
@@ -98,6 +93,18 @@ bool Formation::move()
 
 	if(coords[1]-getNearest(1) < YBOUND)
 		return true;
+
+	//checking for finished explosions here
+	for(list<Baddy*>::iterator i=baddies.begin(); i!=baddies.end(); i++)
+	{
+		if((*i)->getExplosionTime()>0)
+		//the below line is for baddy explosions. the above one removes them as soon as they die
+		//if((*i)->getExplosionTime()==0)
+		{
+			delete *i;
+			i=baddies.erase(i);
+		}
+	}
 
 	return false;
 }

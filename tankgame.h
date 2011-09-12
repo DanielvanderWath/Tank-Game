@@ -15,7 +15,7 @@ const int GAMESIZE=1000;
 
 const int YBOUND=100;
 
-const int numVBOs=3;
+const int numVBOs=4;
 //model indices
 const unsigned int TANK=0;
 const unsigned int BULLET=1;

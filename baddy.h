@@ -6,6 +6,7 @@ class Baddy
 {
 private:
 	int hp;
+	int explosionTime;//explosionTime==-1 when not exploding, >0 when exploding, and 0 when finished
 	int formCoords[3];
 	int dimensions[3];
 	GLuint VBO;
@@ -19,6 +20,8 @@ public:
 	void addFormCoords(int *retCoords);
 	int getC(int i);
 	int getHP();
+	int getExplosionTime();
+	float getExplosionSize();
 	void hit();
 };
 

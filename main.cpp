@@ -7,10 +7,41 @@
 
 const unsigned int VERTS=0;
 const unsigned int COLOURS=1;
+const unsigned int BADDY_CENTRES=2;
 GLuint VBOs[numVBOs];
+GLuint simpleProgram, explosionProgram;
 
-GLint transloc=0, rotloc=0, scaleloc=0, matloc=0;
+GLint  matloc=0, explosionDataLoc=0;
 
+	//TANK_SIZE is the number of vertices in TANK
+	GLfloat tankVerts[]={	-0.3f, 0.0f, 0.0f,	1.0f, 0.0f, 0.0f,
+				 0.3f, 0.0f, 0.0f,	1.0f, 0.0f, 0.0f,
+				 0.0f, 0.5f, 0.0f,	1.0f, 0.0f, 0.0f,
+			};
+	GLfloat bulletVerts[]={	-0.2f, -0.2f, 0.0f,	1.0f, 1.0f, 1.0f,
+				 0.0f,  0.1f, 0.0f,	1.0f, 1.0f, 0.0f,
+				 0.0f,  0.2f, 0.0f,	1.0f, 0.0f, 1.0f,
+				 0.2f, -0.2f, 0.0f,	1.0f, 0.0f, 0.0f,
+				};
+	GLfloat baddyVerts[]={	 0.0f,  1.0f,  0.0f,	1.0f, 0.0f, 0.0f,
+				 1.0f,  0.0f,  0.0f,	0.0f, 0.0f, 1.0f,
+				 0.0f,  0.0f, -1.0f,	0.0f, 0.0f, 1.0f,
+				-1.0f,  0.0f,  0.0f,	0.0f, 0.0f, 1.0f,
+				 0.0f,  0.0f,  1.0f,	0.0f, 0.0f, 1.0f,
+				 0.0f, -1.0f,  0.0f,	1.0f, 0.0f, 0.0f,
+				};
+	GLuint baddyIndices[]={ 0, 1, 2,
+				0, 2, 3,
+				0, 3, 4,
+				0, 4, 1,
+				5, 2, 1, 
+				5, 3, 2,
+				5, 4, 3,
+				5, 1, 4,
+				};
+
+	GLfloat triCentres[BADDY_SIZE*3];
+	
 using namespace std;
 
 int initSDL(SDL_Window **window)
@@ -72,29 +103,21 @@ void handleSDLEvent(SDL_Event *event, bool *loop, Tank *tank)
 
 int setupGLBuffers()
 {
-	//TANK_SIZE is the number of vertices in TANK
-	GLfloat tankVerts[]={	-0.3f, 0.0f, 0.0f,	1.0f, 0.0f, 0.0f,
-				 0.3f, 0.0f, 0.0f,	1.0f, 0.0f, 0.0f,
-				 0.0f, 0.5f, 0.0f,	1.0f, 0.0f, 0.0f,
-			};
-	GLfloat bulletVerts[]={	-0.2f, -0.2f, 0.0f,	1.0f, 1.0f, 1.0f,
-				 0.0f,  0.1f, 0.0f,	1.0f, 1.0f, 0.0f,
-				 0.0f,  0.2f, 0.0f,	1.0f, 0.0f, 1.0f,
-				 0.2f, -0.2f, 0.0f,	1.0f, 0.0f, 0.0f,
-				};
-	GLfloat baddyVerts[]={	 0.0f,  1.0f,  0.0f,	1.0f, 0.0f, 0.0f,
-				 1.0f,  0.0f,  0.0f,	0.0f, 0.0f, 1.0f,
-				 0.0f,  0.0f, -1.0f,	0.0f, 0.0f, 1.0f,
-				-1.0f,  0.0f,  0.0f,	0.0f, 0.0f, 1.0f,
-				 0.0f,  0.0f,  1.0f,	0.0f, 0.0f, 1.0f,
-				 0.0f, -1.0f,  0.0f,	1.0f, 0.0f, 0.0f,
-				};
-	
 	size_t tankVertsSize=sizeof(GLfloat)*6*TANK_SIZE;
 	size_t bulletVertsSize=sizeof(GLfloat)*6*BULLET_SIZE;
 	size_t baddyVertSize=sizeof(GLfloat)*6*BADDY_SIZE;
+	//size_t baddyCentresSize=sizeof(GLfloat)*3*BADDY_SIZE;
 	GLuint VAO=0;
 
+	//calculate triangle centres
+	//take average of vertices
+	/*for(int i=0; i<8; i++)
+	{
+		triCentres[i]=(baddyVerts[baddyIndices[i*3]*6]+baddyVerts[baddyIndices[i*3+1]*6]+baddyVerts[baddyIndices[i*3+1]*6])/3.0f;
+		triCentres[i+1]=(baddyVerts[baddyIndices[i*3]*6+1]+baddyVerts[baddyIndices[i*3+1]*6+1]+baddyVerts[baddyIndices[i*3+1]*6+1])/3.0f;
+		triCentres[i+2]=(baddyVerts[baddyIndices[i*3]*6+2]+baddyVerts[baddyIndices[i*3+1]*6+2]+baddyVerts[baddyIndices[i*3+2]*6+2])/3.0f;
+	}
+*/
 	//VAO
 	glGenVertexArrays(1, &VAO);
 		GLERR("glGenVertexArrays");
@@ -121,17 +144,19 @@ int setupGLBuffers()
 		GLERR("glBindBuffer BADDY");
 	glBufferData(GL_ARRAY_BUFFER, baddyVertSize, baddyVerts, GL_STATIC_DRAW);
 		GLERR("glBufferData BADDY");
+	//glBindBuffer(GL_ARRAY_BUFFER, VBOs[BADDY_CENTRES]);
+		GLERR("glBindBuffer BADDY");
+	//glBufferData(GL_ARRAY_BUFFER, baddyCentresSize, triCentres, GL_STATIC_DRAW);
+		GLERR("glBufferData BADDY");
+	
 
 	//Set pointers up
-	/*glVertexAttribPointer(VERTS, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		GLERR("glVertexAttribPointer");
-	glVertexAttribPointer(COLOURS, 3, GL_FLOAT, GL_FALSE, 3, (void*)3);
-		GLERR("glVertexAttribPointer");*/
-	
 	glEnableVertexAttribArray(VERTS);	
 		GLERR("glEnableVertexAttrib VERTS");	
 	glEnableVertexAttribArray(COLOURS);	
 		GLERR("glEnableVertexAttrib COLOURS");	
+	//glEnableVertexAttribArray(BADDY_CENTRES);	
+		GLERR("glEnableVertexAttrib BADDY_CENTRES");	
 	
 	//unbind the last bound VBO
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -140,7 +165,7 @@ int setupGLBuffers()
 
 int initGL(SDL_Window *window)
 {
-	GLuint program, vertexShader, fragmentShader;
+	GLuint vertexShader, fragmentShader, explosionShader;
 	if(setupGLBuffers()) return 1;
 
 	//depth
@@ -149,24 +174,50 @@ int initGL(SDL_Window *window)
 	glDepthFunc(GL_LEQUAL);	
 		GLERR("glDepthFunc");
 	
+	//explosion shader
+	//if(loadShaderFromFile("explosion.vert", &explosionShader, GL_VERTEX_SHADER)) return 1;
+	
 	//vertex shader
 	if(loadShaderFromFile("simple.vert", &vertexShader, GL_VERTEX_SHADER)) return 1;
 	
 	//fragment shader
 	if(loadShaderFromFile("simple.frag", &fragmentShader, GL_FRAGMENT_SHADER)) return 1;
 
-	//program
-	if(createProgramWith2Shaders(&program, &vertexShader, &fragmentShader)) return 1;
+	//simple program
+	if(createProgramWith2Shaders(&simpleProgram, &vertexShader, &fragmentShader)) return 1;
+	//explosion program
+	//if(createProgramWith2Shaders(&explosionProgram, &explosionShader, &fragmentShader)) return 1;
 
-	glBindAttribLocation(program, VERTS, "position");
+	//bind explosion program attribs
+	/*glUseProgram(explosionProgram);
+		GLERR("glUseProgram");
+
+	glBindAttribLocation(explosionProgram, BADDY_CENTRES, "centre");
 		GLERR("glBindAttribLocation");
-	glBindAttribLocation(program, COLOURS, "colour");
+	glBindAttribLocation(explosionProgram, VERTS, "position");
 		GLERR("glBindAttribLocation");
-	glLinkProgram(program);
+	glBindAttribLocation(explosionProgram, COLOURS, "colour");
+		GLERR("glBindAttribLocation");
+	glLinkProgram(simpleProgram);
+		GLERR("glLinkProgram");
+	*/	
+
+	//bind simple program attribs
+	glUseProgram(simpleProgram);
+		GLERR("glUseProgram");
+
+	glBindAttribLocation(simpleProgram, VERTS, "position");
+		GLERR("glBindAttribLocation");
+	glBindAttribLocation(simpleProgram, COLOURS, "colour");
+		GLERR("glBindAttribLocation");
+	glLinkProgram(simpleProgram);
 		GLERR("glLinkProgram");
 	
 	//get the locations of the uniforms
-	matloc=glGetUniformLocation(program, "matrix");
+	matloc=glGetUniformLocation(simpleProgram, "matrix");
+		GLERR("glGetUniformLocation matrix");
+	
+	explosionDataLoc=glGetUniformLocation(simpleProgram, "matrix");
 		GLERR("glGetUniformLocation matrix");
 	
 	glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
@@ -181,7 +232,6 @@ void gameToDraw(int *A, float *B, int count)
 	{
 		float temp=(float)A[i];
 		B[i] = temp/(GAMESIZE/2) -1.0f;
-		//printf("A=%d B=%f\n", A[i], B[i]);
 	}
 }
 
@@ -224,6 +274,57 @@ int Tank::drawBullets()
 	return 0;
 }
 
+int drawExplodingBaddy(float *coords, int phase, float explosionSize)
+{
+	GLfloat translate[]={	BADDYSCALE, 0.0f, 0.0f, coords[0],
+					0.0f, BADDYSCALE, 0.0f, coords[1],
+					0.0f, 0.0f, BADDYSCALE, coords[2],
+					0.0f, 0.0f, 0.0f, 1.0f,
+				};
+	float s=sin(RADS((float)(phase)));
+	float c=cos(RADS((float)(phase)));
+	const GLfloat rotateY[]={	   c, 	0.0f, 	   s,	0.0f,
+					0.0f, 	1.0f, 	0.0f,	0.0f,
+					  -s, 	0.0f, 	   c,	0.0f,
+					0.0f, 	0.0f, 	0.0f, 	1.0f,
+				};
+	s=sin(RADS(30.0f));
+	c=cos(RADS(30.0f));
+	const GLfloat rotateZ[]={	   c, 	  -s, 	0.0f,	0.0f,
+					   s, 	   c, 	0.0f,	0.0f,
+					0.0f, 	0.0f, 	1.0f,	0.0f,
+					0.0f, 	0.0f, 	0.0f, 	1.0f,
+				};
+	float baddyScale=0.07f;
+	GLfloat matrix[]={	1.0f, 	0.0f, 	0.0f, 0.0f,
+				0.0f, 		1.0f,	0.0f, 0.0f,
+				0.0f, 		0.0f, 	1.0f, 0.0f,
+				0.0f, 		0.0f, 		0.0f, 1.0f,
+				};
+
+	printf("Drawing an explosion\n");
+	//Bind the explosion shaders
+	//glUseProgram(explosionProgram);
+		GLERR("glUseProgram");
+
+	//glBindBuffer(GL_ARRAY_BUFFER, VBOs[BADDY_CENTRES]);
+		GLERR("glBindBuffer BADDY");
+	//glVertexAttribPointer(BADDY_CENTRES, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		GLERR("glVertexAttribPointer");
+
+	multMatrices4x4(translate, matrix);
+	multMatrices4x4(rotateY, matrix);
+	multMatrices4x4(rotateZ, matrix);
+
+	glUniformMatrix4fv(explosionDataLoc, 1, GL_FALSE, &matrix[0]);
+		GLERR("glUniformMatrix4f matrix");
+	glUniformMatrix4fv(matloc, 1, GL_FALSE, &matrix[0]);
+		GLERR("glUniformMatrix4f matrix");
+
+	glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_INT, baddyIndices);
+		GLERR("glDrawElements BADDY");	
+}
+	
 int drawBaddy(float *coords, int phase)
 {
 	GLfloat translate[]={	BADDYSCALE, 0.0f, 0.0f, coords[0],
@@ -265,6 +366,7 @@ int drawBaddy(float *coords, int phase)
 	multMatrices4x4(rotateY, matrix);
 	multMatrices4x4(rotateZ, matrix);
 
+	glUseProgram(simpleProgram);
 	glUniformMatrix4fv(matloc, 1, GL_FALSE, &matrix[0]);
 		GLERR("glUniformMatrix4f matrix");
 
@@ -288,12 +390,25 @@ int Formation::draw(int phase)
 		(*i)->addFormCoords(baddyCoords);
 		gameToDraw(baddyCoords, drawcoords,  3);
 
-		if(drawBaddy(drawcoords, phase))
+		if((*i)->getExplosionTime() ==-1)
 		{
-			printf("Error when drawing baddies\n");
-			return 1;
+			if(drawBaddy(drawcoords, phase))
+			{
+				printf("Error when drawing baddies\n");
+				return 1;
+			}
+		}else
+		{
+			/*if(drawExplodingBaddy(drawcoords, phase, 4.0-(*i)->getExplosionSize()))
+			{
+				printf("Error when drawing baddies\n");
+				return 1;
+			}*/
 		}
+			
 	}
+	glUseProgram(simpleProgram);
+		GLERR("glUseProgram simpleProgram");
 }
 
 int display(SDL_Window *window, Tank *tank, Formation *baddies, int phase)
@@ -330,24 +445,29 @@ int display(SDL_Window *window, Tank *tank, Formation *baddies, int phase)
 
 	glUniformMatrix4fv(matloc, 1, GL_FALSE, &matrix[0]);
 		GLERR("glUniformMatrix4f scale");
+	//Use the simple program
+	glUseProgram(simpleProgram);
+
 
 	//consider this the start of our drawing
 	glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);	
-
 	//draw the tank
 	glBindBuffer(GL_ARRAY_BUFFER, tank->getVBO());
 	glVertexAttribPointer(VERTS, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*6, 0);
 		GLERR("glVertexAttribPointer");
+
 	glVertexAttribPointer(COLOURS, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*6, (void*)(3*sizeof(GLfloat)));
 		GLERR("glVertexAttribPointer");
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, tank->getTriCount());
+		GLERR("glDrawArrays");
 
 	//and its bullets
 	glBindBuffer(GL_ARRAY_BUFFER, VBOs[BULLET]);
 	glVertexAttribPointer(VERTS, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*6, 0);
 	glVertexAttribPointer(COLOURS, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*6, (void*)(3*sizeof(GLfloat)));
 		GLERR("glVertexAttribPointer");
+
 	if(tank->drawBullets()) return 1;
 
 	//then the baddies
@@ -355,7 +475,7 @@ int display(SDL_Window *window, Tank *tank, Formation *baddies, int phase)
 		GLERR("glBindBuffer BADDY");
 	glVertexAttribPointer(VERTS, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*6, 0);
 		GLERR("glVertexAttribPointer BADDY");
-	
+
 	glVertexAttribPointer(COLOURS, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*6, (void*)(sizeof(GLfloat)*3));
 		GLERR("glVertexAttribPointer");
 	baddies->draw(phase);
