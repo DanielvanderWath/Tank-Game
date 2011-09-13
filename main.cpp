@@ -144,10 +144,6 @@ int setupGLBuffers()
 		GLERR("glBindBuffer BADDY");
 	glBufferData(GL_ARRAY_BUFFER, baddyVertSize, baddyVerts, GL_STATIC_DRAW);
 		GLERR("glBufferData BADDY");
-	//glBindBuffer(GL_ARRAY_BUFFER, VBOs[BADDY_CENTRES]);
-		GLERR("glBindBuffer BADDY");
-	//glBufferData(GL_ARRAY_BUFFER, baddyCentresSize, triCentres, GL_STATIC_DRAW);
-		GLERR("glBufferData BADDY");
 	
 
 	//Set pointers up
@@ -155,8 +151,6 @@ int setupGLBuffers()
 		GLERR("glEnableVertexAttrib VERTS");	
 	glEnableVertexAttribArray(COLOURS);	
 		GLERR("glEnableVertexAttrib COLOURS");	
-	//glEnableVertexAttribArray(BADDY_CENTRES);	
-		GLERR("glEnableVertexAttrib BADDY_CENTRES");	
 	
 	//unbind the last bound VBO
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -175,7 +169,7 @@ int initGL(SDL_Window *window)
 		GLERR("glDepthFunc");
 	
 	//explosion shader
-	//if(loadShaderFromFile("explosion.vert", &explosionShader, GL_VERTEX_SHADER)) return 1;
+	if(loadShaderFromFile("explosion.vert", &explosionShader, GL_VERTEX_SHADER)) return 1;
 	
 	//vertex shader
 	if(loadShaderFromFile("simple.vert", &vertexShader, GL_VERTEX_SHADER)) return 1;
@@ -186,21 +180,19 @@ int initGL(SDL_Window *window)
 	//simple program
 	if(createProgramWith2Shaders(&simpleProgram, &vertexShader, &fragmentShader)) return 1;
 	//explosion program
-	//if(createProgramWith2Shaders(&explosionProgram, &explosionShader, &fragmentShader)) return 1;
+	if(createProgramWith2Shaders(&explosionProgram, &explosionShader, &fragmentShader)) return 1;
 
 	//bind explosion program attribs
-	/*glUseProgram(explosionProgram);
+	glUseProgram(explosionProgram);
 		GLERR("glUseProgram");
 
-	glBindAttribLocation(explosionProgram, BADDY_CENTRES, "centre");
-		GLERR("glBindAttribLocation");
 	glBindAttribLocation(explosionProgram, VERTS, "position");
 		GLERR("glBindAttribLocation");
 	glBindAttribLocation(explosionProgram, COLOURS, "colour");
 		GLERR("glBindAttribLocation");
-	glLinkProgram(simpleProgram);
+	glLinkProgram(explosionProgram);
 		GLERR("glLinkProgram");
-	*/	
+		
 
 	//bind simple program attribs
 	glUseProgram(simpleProgram);
@@ -217,8 +209,8 @@ int initGL(SDL_Window *window)
 	matloc=glGetUniformLocation(simpleProgram, "matrix");
 		GLERR("glGetUniformLocation matrix");
 	
-	explosionDataLoc=glGetUniformLocation(simpleProgram, "matrix");
-		GLERR("glGetUniformLocation matrix");
+	explosionDataLoc=glGetUniformLocation(simpleProgram, "phase");
+		GLERR("glGetUniformLocation phase");
 	
 	glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);	
@@ -304,21 +296,19 @@ int drawExplodingBaddy(float *coords, int phase, float explosionSize)
 
 	printf("Drawing an explosion\n");
 	//Bind the explosion shaders
-	//glUseProgram(explosionProgram);
+	glUseProgram(explosionProgram);
 		GLERR("glUseProgram");
 
-	//glBindBuffer(GL_ARRAY_BUFFER, VBOs[BADDY_CENTRES]);
-		GLERR("glBindBuffer BADDY");
-	//glVertexAttribPointer(BADDY_CENTRES, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		GLERR("glVertexAttribPointer");
 
 	multMatrices4x4(translate, matrix);
 	multMatrices4x4(rotateY, matrix);
 	multMatrices4x4(rotateZ, matrix);
 
-	glUniformMatrix4fv(explosionDataLoc, 1, GL_FALSE, &matrix[0]);
+	printf("ex%f", explosionSize);
+	
+	glUniform1f(glGetUniformLocation(explosionProgram, "phase"), (float)(explosionSize/50.0f));
 		GLERR("glUniformMatrix4f matrix");
-	glUniformMatrix4fv(matloc, 1, GL_FALSE, &matrix[0]);
+	glUniformMatrix4fv(glGetUniformLocation(explosionProgram, "matrix"), 1, GL_FALSE, &matrix[0]);
 		GLERR("glUniformMatrix4f matrix");
 
 	glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_INT, baddyIndices);
@@ -399,11 +389,11 @@ int Formation::draw(int phase)
 			}
 		}else
 		{
-			/*if(drawExplodingBaddy(drawcoords, phase, 4.0-(*i)->getExplosionSize()))
+			if(drawExplodingBaddy(drawcoords, phase, 4.0-(*i)->getExplosionSize()))
 			{
 				printf("Error when drawing baddies\n");
 				return 1;
-			}*/
+			}
 		}
 			
 	}

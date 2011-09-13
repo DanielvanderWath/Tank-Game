@@ -97,9 +97,9 @@ bool Formation::move()
 	//checking for finished explosions here
 	for(list<Baddy*>::iterator i=baddies.begin(); i!=baddies.end(); i++)
 	{
-		if((*i)->getExplosionTime()>0)
+		//if((*i)->getExplosionTime()>0)
 		//the below line is for baddy explosions. the above one removes them as soon as they die
-		//if((*i)->getExplosionTime()==0)
+		if((*i)->getExplosionTime()==0)
 		{
 			delete *i;
 			i=baddies.erase(i);
