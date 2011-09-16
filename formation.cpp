@@ -1,6 +1,7 @@
 #include "formation.h"
 #include "baddy.h"
 #include "tankgame.h"
+#include "explosion.h"
 
 Formation::Formation(int width, int height, int *Coords)
 {
@@ -78,7 +79,7 @@ bool Formation::allDead()
 	return baddies.empty();
 }
 
-bool Formation::move()
+bool Formation::move(list<Explosion*> *explosions)
 {//return true if y coordinate goes below YBOUND
 	//move horizontally
 	coords[0]+=velocity[0];
@@ -97,10 +98,16 @@ bool Formation::move()
 	//checking for finished explosions here
 	for(list<Baddy*>::iterator i=baddies.begin(); i!=baddies.end(); i++)
 	{
-		//if((*i)->getExplosionTime()>0)
+		if((*i)->getExplosionTime()>0)
 		//the below line is for baddy explosions. the above one removes them as soon as they die
-		if((*i)->getExplosionTime()==0)
+		//if((*i)->getExplosionTime()==0)
 		{
+			int explCoords[3];
+			for(int j=0; j<3; j++)
+				explCoords[j]=coords[j];
+
+			(*i)->addFormCoords(explCoords);
+			explosions->push_back(new Explosion((*i)->getVBO(), explCoords, 400 ));
 			delete *i;
 			i=baddies.erase(i);
 		}

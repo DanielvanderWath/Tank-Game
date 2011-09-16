@@ -1,6 +1,7 @@
 #ifndef FORMATION_H
 #define FORMATION_H
 #include "baddy.h"
+#include "explosion.h"
 #include <list>
 #include "mylib.h"
 
@@ -19,7 +20,7 @@ public:
 	int draw(int phase);
 	int getFurthest(int axis);
 	int getNearest(int axis);
-	bool move();
+	bool move(list<Explosion*> *explosions);
 	bool allDead();
 };
 #endif

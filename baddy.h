@@ -19,6 +19,7 @@ public:
 	void getDimensions(int *dims);
 	void addFormCoords(int *retCoords);
 	int getC(int i);
+	GLuint getVBO();
 	int getHP();
 	int getExplosionTime();
 	float getExplosionSize();

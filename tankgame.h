@@ -6,6 +6,7 @@
 #include "formation.h"
 #include "bullet.h"
 #include "tank.h"
+#include "explosion.h"
 
 const float SCALE=1.0f;
 

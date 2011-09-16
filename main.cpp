@@ -294,18 +294,11 @@ int drawExplodingBaddy(float *coords, int phase, float explosionSize)
 				0.0f, 		0.0f, 		0.0f, 1.0f,
 				};
 
-	printf("Drawing an explosion\n");
-	//Bind the explosion shaders
-	glUseProgram(explosionProgram);
-		GLERR("glUseProgram");
-
 
 	multMatrices4x4(translate, matrix);
 	multMatrices4x4(rotateY, matrix);
 	multMatrices4x4(rotateZ, matrix);
 
-	printf("ex%f", explosionSize);
-	
 	glUniform1f(glGetUniformLocation(explosionProgram, "phase"), (float)(explosionSize/50.0f));
 		GLERR("glUniformMatrix4f matrix");
 	glUniformMatrix4fv(glGetUniformLocation(explosionProgram, "matrix"), 1, GL_FALSE, &matrix[0]);
@@ -366,6 +359,15 @@ int drawBaddy(float *coords, int phase)
 
 int Formation::draw(int phase)
 {
+	//Bind the baddy VBO
+	glBindBuffer(GL_ARRAY_BUFFER, VBOs[BADDY]);
+		GLERR("glBindBuffer BADDY");
+	glVertexAttribPointer(VERTS, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*6, 0);
+		GLERR("glVertexAttribPointer BADDY");
+
+	glVertexAttribPointer(COLOURS, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*6, (void*)(sizeof(GLfloat)*3));
+		GLERR("glVertexAttribPointer");
+	//draw all of them 
 	for(list<Baddy*>::iterator i=baddies.begin(); i!=baddies.end(); i++)
 	{
 		float drawcoords[3];
@@ -380,28 +382,36 @@ int Formation::draw(int phase)
 		(*i)->addFormCoords(baddyCoords);
 		gameToDraw(baddyCoords, drawcoords,  3);
 
-		if((*i)->getExplosionTime() ==-1)
+		if(drawBaddy(drawcoords, phase))
 		{
-			if(drawBaddy(drawcoords, phase))
-			{
-				printf("Error when drawing baddies\n");
-				return 1;
-			}
-		}else
-		{
-			if(drawExplodingBaddy(drawcoords, phase, 4.0-(*i)->getExplosionSize()))
-			{
-				printf("Error when drawing baddies\n");
-				return 1;
-			}
+			printf("Error when drawing baddies\n");
+			return 1;
 		}
 			
 	}
-	glUseProgram(simpleProgram);
-		GLERR("glUseProgram simpleProgram");
+	//still need this? set the shader program back to simple...
 }
 
-int display(SDL_Window *window, Tank *tank, Formation *baddies, int phase)
+int drawExplosions(list<Explosion*> explodingBaddies)
+{
+
+	float drawCoords[3];
+	int explCoords[3];
+
+	for(list<Explosion*>::iterator i= explodingBaddies.begin(); i!=explodingBaddies.end(); i++)
+	{
+		(*i)->getPosition(explCoords);
+		gameToDraw(explCoords, drawCoords,  3);
+		
+		if(drawExplodingBaddy(drawCoords, (*i)->getPhase(), 4.0-(*i)->getSize()))
+		{
+			printf("Error when drawing baddies\n");
+			return 1;
+		}
+	}
+}
+
+int display(SDL_Window *window, Tank *tank, Formation *baddies, int phase, list<Explosion*> explosions)
 {
 	//tank first
 	int tankposi[3];
@@ -433,10 +443,11 @@ int display(SDL_Window *window, Tank *tank, Formation *baddies, int phase)
 	multMatrices4x4(translate, matrix);
 	multMatrices4x4(rotate, matrix);
 
-	glUniformMatrix4fv(matloc, 1, GL_FALSE, &matrix[0]);
-		GLERR("glUniformMatrix4f scale");
 	//Use the simple program
 	glUseProgram(simpleProgram);
+
+	glUniformMatrix4fv(matloc, 1, GL_FALSE, &matrix[0]);
+		GLERR("glUniformMatrix4f scale");
 
 
 	//consider this the start of our drawing
@@ -461,16 +472,26 @@ int display(SDL_Window *window, Tank *tank, Formation *baddies, int phase)
 	if(tank->drawBullets()) return 1;
 
 	//then the baddies
-	glBindBuffer(GL_ARRAY_BUFFER, VBOs[BADDY]);
-		GLERR("glBindBuffer BADDY");
-	glVertexAttribPointer(VERTS, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*6, 0);
-		GLERR("glVertexAttribPointer BADDY");
-
-	glVertexAttribPointer(COLOURS, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*6, (void*)(sizeof(GLfloat)*3));
-		GLERR("glVertexAttribPointer");
 	baddies->draw(phase);
+
+	//Bind the explosion shaders
+	glUseProgram(explosionProgram);
+		GLERR("glUseProgram");
+	
+	//and draw the exploding baddies
+	drawExplosions(explosions);
 	SDL_GL_SwapWindow(window);
 }
+
+void tickExplosions(list<Explosion*> *explosions)
+{
+	for(list<Explosion*>::iterator i=explosions->begin(); i!=explosions->end(); i++)
+		if((*i)->tick())	
+		{
+			delete *i;
+			i=explosions->erase(i);
+		}
+} 
 
 int main(int argc, char **argv)
 {
@@ -481,6 +502,7 @@ int main(int argc, char **argv)
 	unsigned int atick=0, btick=0;
 	int wait, phase=0;
 	Formation *baddies = NULL;
+	list<Explosion*> explosions;
 
 	//setup
 	if(initSDL(&window)) return 1;
@@ -512,7 +534,7 @@ int main(int argc, char **argv)
 		{
 			handleSDLEvent(&eventSDL, &loop, tank);
 		}
-		display(window, tank, baddies, phase++);
+		display(window, tank, baddies, phase++, explosions);
 		//keep drawing and taking keyboard input, but don't move anything or quit (just yet)
 		if(!gameover)
 		{
@@ -523,10 +545,10 @@ int main(int argc, char **argv)
 				gameover=true;
 			}
 			tank->tick();
-
+			tickExplosions(&explosions);
 			//don't move on the tick that the last one dies
 			if(!gameover)
-				if(baddies->move())
+				if(baddies->move(&explosions))
 				{
 					printf("YOU LOSE NOOB!\n");
 					gameover=true;		

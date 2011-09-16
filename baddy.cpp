@@ -33,6 +33,11 @@ int Baddy::getC(int i)
 	return formCoords[i];
 }
 
+GLuint Baddy::getVBO()
+{
+	return VBO;
+}
+
 int Baddy::getHP()
 {
 	return hp;
