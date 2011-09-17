@@ -2,6 +2,7 @@
 #include "baddy.h"
 #include "tankgame.h"
 #include "explosion.h"
+#include <math.h>
 
 Formation::Formation(int width, int height, int *Coords)
 {
@@ -19,7 +20,7 @@ Formation::Formation(int width, int height, int *Coords)
 		{
 			int formcoord[3]={(baddySize+spacing[0])*w, (baddySize+spacing[1])*h, 0};
 
-			Baddy *temp=new Baddy(2, formcoord);
+			Baddy *temp=new Baddy((rand()%2)+1, formcoord);
 			baddies.push_back(temp);
 		}
 }
@@ -92,7 +93,8 @@ bool Formation::move(list<Explosion*> *explosions)
 		velocity[0]*=-1.0f;
 	}
 
-	if(coords[1]-getNearest(1) < YBOUND)
+	//game over 
+	if(coords[1]+getNearest(1) < YBOUND)
 		return true;
 
 	//checking for finished explosions here
