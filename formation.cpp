@@ -20,7 +20,7 @@ Formation::Formation(int width, int height, int *Coords)
 		{
 			int formcoord[3]={(baddySize+spacing[0])*w, (baddySize+spacing[1])*h, 0};
 
-			Baddy *temp=new Baddy((rand()%2)+1, formcoord);
+			Baddy *temp=new Baddy((rand()%3)+1, formcoord);
 			baddies.push_back(temp);
 		}
 }
