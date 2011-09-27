@@ -13,8 +13,11 @@ class Tank
 		float aim;
 		GLuint VBO; 
 		unsigned int triCount;
+		int bulletSpeed;
 		list<Bullet*> bullets;
+		list<Bullet*> bombs;
 		int gunCoolDown;
+		int bombCoolDown;
 	public:
 		Tank();
 		void getPosition(int *position);
@@ -28,6 +31,7 @@ class Tank
 		void tick();
 		void rotate(float angle);
 		void shoot();
+		void shootBomb();
 		void moveBullets(Formation *form);
 		int drawBullets();
 };

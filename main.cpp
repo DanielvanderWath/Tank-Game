@@ -538,6 +538,8 @@ int main(int argc, char **argv)
 		//keep drawing and taking keyboard input, but don't move anything or quit (just yet)
 		if(!gameover)
 		{
+			int tankcoords[3];
+
 			tank->moveBullets(baddies);
 			if(baddies->allDead())
 			{
@@ -545,14 +547,19 @@ int main(int argc, char **argv)
 				gameover=true;
 			}
 			tank->tick();
+				
+
 			tickExplosions(&explosions);
 			//don't move on the tick that the last one dies
 			if(!gameover)
-				if(baddies->move(&explosions))
+			{
+				tank->getPosition(tankcoords);
+				if(baddies->move(&explosions) || baddies->checkCollision(tankcoords))
 				{
 					printf("YOU LOSE NOOB!\n");
 					gameover=true;		
 				}
+			}
 		}
 		btick=SDL_GetTicks();
 		wait=(1000.0f/60.0f)-(btick-atick);
