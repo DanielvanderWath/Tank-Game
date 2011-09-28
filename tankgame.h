@@ -21,10 +21,13 @@ const int numVBOs=4;
 const unsigned int TANK=0;
 const unsigned int BULLET=1;
 const unsigned int BADDY=2;
+const unsigned int GAMESCREEN=3;
 const unsigned int TANK_SIZE=3;
 const float TANKSCALE=0.3f;
 const float BULLETSCALE=0.3f;
 const float BADDYSCALE=0.05f;
 const unsigned int BULLET_SIZE=4;
 const unsigned int BADDY_SIZE=6;//verts, 8 triangles
+const unsigned int GAMESCREEN_SIZE=4;//verts, 8 triangles
+
 #endif

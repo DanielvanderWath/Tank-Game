@@ -7,9 +7,9 @@
 
 const unsigned int VERTS=0;
 const unsigned int COLOURS=1;
-const unsigned int BADDY_CENTRES=2;
+const unsigned int TEXCOORDS=2;
 GLuint VBOs[numVBOs];
-GLuint simpleProgram, explosionProgram;
+GLuint simpleProgram, explosionProgram, texProgram;
 
 GLint  matloc=0, explosionDataLoc=0;
 
@@ -109,15 +109,6 @@ int setupGLBuffers()
 	//size_t baddyCentresSize=sizeof(GLfloat)*3*BADDY_SIZE;
 	GLuint VAO=0;
 
-	//calculate triangle centres
-	//take average of vertices
-	/*for(int i=0; i<8; i++)
-	{
-		triCentres[i]=(baddyVerts[baddyIndices[i*3]*6]+baddyVerts[baddyIndices[i*3+1]*6]+baddyVerts[baddyIndices[i*3+1]*6])/3.0f;
-		triCentres[i+1]=(baddyVerts[baddyIndices[i*3]*6+1]+baddyVerts[baddyIndices[i*3+1]*6+1]+baddyVerts[baddyIndices[i*3+1]*6+1])/3.0f;
-		triCentres[i+2]=(baddyVerts[baddyIndices[i*3]*6+2]+baddyVerts[baddyIndices[i*3+1]*6+2]+baddyVerts[baddyIndices[i*3+2]*6+2])/3.0f;
-	}
-*/
 	//VAO
 	glGenVertexArrays(1, &VAO);
 		GLERR("glGenVertexArrays");
@@ -151,6 +142,8 @@ int setupGLBuffers()
 		GLERR("glEnableVertexAttrib VERTS");	
 	glEnableVertexAttribArray(COLOURS);	
 		GLERR("glEnableVertexAttrib COLOURS");	
+	glEnableVertexAttribArray(TEXCOORDS);
+		GLERR("glEnableVertexAttrib TEXCOORDS");
 	
 	//unbind the last bound VBO
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -159,7 +152,7 @@ int setupGLBuffers()
 
 int initGL(SDL_Window *window)
 {
-	GLuint vertexShader, fragmentShader, explosionShader;
+	GLuint vertexShader, fragmentShader, explosionShader, ftexShader, vtexShader;
 	if(setupGLBuffers()) return 1;
 
 	//depth
@@ -177,10 +170,27 @@ int initGL(SDL_Window *window)
 	//fragment shader
 	if(loadShaderFromFile("simple.frag", &fragmentShader, GL_FRAGMENT_SHADER)) return 1;
 
+	//tex shaders
+	if(loadShaderFromFile("tex.vert", &vtexShader, GL_VERTEX_SHADER)) return 1;
+	if(loadShaderFromFile("tex.frag", &ftexShader, GL_FRAGMENT_SHADER)) return 1;
+	
+
 	//simple program
 	if(createProgramWith2Shaders(&simpleProgram, &vertexShader, &fragmentShader)) return 1;
 	//explosion program
 	if(createProgramWith2Shaders(&explosionProgram, &explosionShader, &fragmentShader)) return 1;
+	//texture program
+	if(createProgramWith2Shaders(&texProgram, &vtexShader, &ftexShader)) return 1;
+
+	//bind texture program attribs
+	glUseProgram(texProgram);
+		GLERR("glUseProgram texProgram");
+	glBindAttribLocation(texProgram, VERTS, "position");
+		GLERR("glBindAttribLocation");
+	glBindAttribLocation(texProgram, TEXCOORDS, "vtexCoord"); 
+		GLERR("glBindAttribLocation");
+	glLinkProgram(texProgram);
+		GLERR("glLinkProgram");
 
 	//bind explosion program attribs
 	glUseProgram(explosionProgram);
@@ -211,7 +221,7 @@ int initGL(SDL_Window *window)
 	
 	explosionDataLoc=glGetUniformLocation(simpleProgram, "phase");
 		GLERR("glGetUniformLocation phase");
-	
+
 	glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);	
 
@@ -480,7 +490,6 @@ int display(SDL_Window *window, Tank *tank, Formation *baddies, int phase, list<
 	
 	//and draw the exploding baddies
 	drawExplosions(explosions);
-	SDL_GL_SwapWindow(window);
 }
 
 void tickExplosions(list<Explosion*> *explosions)
@@ -493,6 +502,27 @@ void tickExplosions(list<Explosion*> *explosions)
 		}
 } 
 
+int initTextureDrawer(GLuint *gameScreenVBO)
+{
+	GLfloat gameScreenVerts[]={	-1.0f, -1.0f, 0.0f,	0.0f, 0.0f,
+					 1.0f, -1.0f, 0.0f,	1.0f, 0.0f,
+					-1.0f,  1.0f, 0.0f,	0.0f, 1.0f,
+					 1.0f,  1.0f, 0.0f,	1.0f, 1.0f,
+					};
+	int gameScreenVertsSize=20;
+	glGenBuffers(1, gameScreenVBO);
+		GLERR("glGenBuffers");
+	glBindBuffer(GL_ARRAY_BUFFER, *gameScreenVBO);
+		GLERR("glBindBuffer");
+	glBufferData(GL_ARRAY_BUFFER, gameScreenVertsSize, gameScreenVerts, GL_STATIC_DRAW);
+		GLERR("glBufferData");
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+		GLERR("glBindBuffer");
+
+	
+}
+
 int main(int argc, char **argv)
 {
 	SDL_Window *window=NULL;
@@ -503,6 +533,9 @@ int main(int argc, char **argv)
 	int wait, phase=0;
 	Formation *baddies = NULL;
 	list<Explosion*> explosions;
+	GLuint FBO=0, texture=0, gameScreenVBO=0, sampler=0, rdb=0;
+
+		
 
 	//setup
 	if(initSDL(&window)) return 1;
@@ -511,6 +544,47 @@ int main(int argc, char **argv)
 	SDL_GL_SetSwapInterval(1);
 
 	if(initGL(window)) return 1;
+
+	//create framebuffer object to render the original scene to
+	glGenFramebuffers(1, &FBO);
+		GLERR("glGenFrameBuffers");
+	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+		GLERR("glBindFrameBuffer");
+	//create a texture to bind to the framebuffer object
+	glGenTextures(1, &texture);
+		GLERR("glGenTextures");
+	glBindTexture(GL_TEXTURE_2D, texture);
+		GLERR("glBindTexture");
+	glActiveTexture(GL_TEXTURE0);
+		GLERR("glActiveTexture");
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, WINWIDTH, WINHEIGHT, 0, GL_RGBA, GL_UNSIGNED_INT, NULL);	
+		GLERR("glTexImage2D");
+	//bind them together
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+		GLERR("glFramebufferTexture2D");
+	//now we need a depth buffer, this is getting a little tedious.
+	glGenRenderbuffers(1, &rdb);
+		GLERR("glGenRenderBuffers");
+	glBindRenderbuffer(GL_RENDERBUFFER, rdb);
+		GLERR("glBindRenderBuffer");
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, WINWIDTH, WINHEIGHT);
+		GLERR("glRenderbufferStorage");
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rdb);
+	//create a sampler to use
+	glGenSamplers(1, &sampler);
+		GLERR("glGenSamplers");
+	glSamplerParameteri(sampler, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glSamplerParameteri(sampler, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glBindSampler(0, sampler);
+		GLERR("glBindSampler");
+	//set up a VBO for our quad/eventual cube
+	initTextureDrawer(&gameScreenVBO);
+
+	GLenum status=glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if( status == GL_FRAMEBUFFER_COMPLETE)
+		printf("FBO is complete\n");
+	else
+		printf("FBO is incomplete, 0x%X\n", status);
 
 	//seed random
 	int seed;
@@ -564,7 +638,38 @@ int main(int argc, char **argv)
 		btick=SDL_GetTicks();
 		wait=(1000.0f/60.0f)-(btick-atick);
 		SDL_Delay(wait > 0 ? wait : 0);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			GLERR("glBindFramebuffer 0");
+		glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+		glUseProgram(texProgram);
+			GLERR("glUSeProgram");
+		float c=cos(PI/4);
+		float s=sin(PI/4);
+		const GLfloat rotate[]={	c, 	-s, 	0.0f, 0.0f,
+						s, 	 c, 	0.0f, 0.0f,
+						0.0f, 	 0.0f, 	1.0f, 0.0f,
+						0.0f, 	 0.0f, 	0.0f, 1.0f,
+					};
+		GLuint matrixLoc=glGetUniformLocation(texProgram, "matrix");
+			GLERR("glGetUniformLocation");
+		GLuint samplerLoc=glGetUniformLocation(texProgram, "samp");
+			GLERR("glGetUniformLocation");
 		
+		glUniformMatrix4fv(matrixLoc, 1, GL_FALSE, &rotate[0]);
+			GLERR("glUniformMatrix4f matrix");
+		glUniform1i(samplerLoc, sampler);
+
+		glBindBuffer(GL_ARRAY_BUFFER, gameScreenVBO);
+			GLERR("glBindBuffer");
+		glVertexAttribPointer(VERTS, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*5, 0);
+			GLERR("glVertexAttribPointer VERTS");
+		glVertexAttribPointer(TEXCOORDS, 2, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*5, (void*)(sizeof(GLfloat)*2));
+			GLERR("glVertexAttribPointer TEXCOORDS");
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+		SDL_GL_SwapWindow(window);
+			
 	}
 
 }
