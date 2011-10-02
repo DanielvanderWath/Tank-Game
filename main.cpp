@@ -142,8 +142,6 @@ int setupGLBuffers()
 		GLERR("glEnableVertexAttrib VERTS");	
 	glEnableVertexAttribArray(COLOURS);	
 		GLERR("glEnableVertexAttrib COLOURS");	
-	glEnableVertexAttribArray(TEXCOORDS);
-		GLERR("glEnableVertexAttrib TEXCOORDS");
 	
 	//unbind the last bound VBO
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -154,6 +152,7 @@ int initGL(SDL_Window *window)
 {
 	GLuint vertexShader, fragmentShader, explosionShader, ftexShader, vtexShader;
 	if(setupGLBuffers()) return 1;
+
 
 	//depth
 	glEnable(GL_DEPTH_TEST);
@@ -472,7 +471,6 @@ int display(SDL_Window *window, Tank *tank, Formation *baddies, int phase, list<
 		GLERR("glVertexAttribPointer");
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, tank->getTriCount());
 		GLERR("glDrawArrays");
-
 	//and its bullets
 	glBindBuffer(GL_ARRAY_BUFFER, VBOs[BULLET]);
 	glVertexAttribPointer(VERTS, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*6, 0);
@@ -514,13 +512,11 @@ int initTextureDrawer(GLuint *gameScreenVBO)
 		GLERR("glGenBuffers");
 	glBindBuffer(GL_ARRAY_BUFFER, *gameScreenVBO);
 		GLERR("glBindBuffer");
-	glBufferData(GL_ARRAY_BUFFER, gameScreenVertsSize, gameScreenVerts, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)*gameScreenVertsSize, gameScreenVerts, GL_STATIC_DRAW);
 		GLERR("glBufferData");
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 		GLERR("glBindBuffer");
-
-	
 }
 
 int main(int argc, char **argv)
@@ -533,7 +529,7 @@ int main(int argc, char **argv)
 	int wait, phase=0;
 	Formation *baddies = NULL;
 	list<Explosion*> explosions;
-	GLuint FBO=0, texture=0, gameScreenVBO=0, sampler=0, rdb=0;
+	GLuint FBO=0, texture=0, gameScreenVBO=0, sampler=0, rdb=0, matrixLoc=0, samplerLoc=0;
 
 		
 
@@ -555,12 +551,20 @@ int main(int argc, char **argv)
 		GLERR("glGenTextures");
 	glBindTexture(GL_TEXTURE_2D, texture);
 		GLERR("glBindTexture");
-	glActiveTexture(GL_TEXTURE0);
-		GLERR("glActiveTexture");
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, WINWIDTH, WINHEIGHT, 0, GL_RGBA, GL_UNSIGNED_INT, NULL);	
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		GLERR("glTexParameteri");
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		GLERR("glTexParameteri");
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		GLERR("glTexParameteri");
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		GLERR("glTexParameteri");
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, WINWIDTH, WINHEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);	
 		GLERR("glTexImage2D");
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, 0);
 	//bind them together
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,  texture, 0);
 		GLERR("glFramebufferTexture2D");
 	//now we need a depth buffer, this is getting a little tedious.
 	glGenRenderbuffers(1, &rdb);
@@ -570,6 +574,10 @@ int main(int argc, char **argv)
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, WINWIDTH, WINHEIGHT);
 		GLERR("glRenderbufferStorage");
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rdb);
+		GLERR("glFramebufferRenderbuffer");
+	//viewport
+	glViewport(0, 0, WINWIDTH, WINHEIGHT);
+		GLERR("glViewPort");
 	//create a sampler to use
 	glGenSamplers(1, &sampler);
 		GLERR("glGenSamplers");
@@ -650,11 +658,18 @@ int main(int argc, char **argv)
 						s, 	 c, 	0.0f, 0.0f,
 						0.0f, 	 0.0f, 	1.0f, 0.0f,
 						0.0f, 	 0.0f, 	0.0f, 1.0f,
-					};
-		GLuint matrixLoc=glGetUniformLocation(texProgram, "matrix");
+					};/*
+		const GLfloat rotate[]={	0.5f, 	 0.0f, 	0.0f, 0.0f,
+						0.0f, 	 0.5f, 	0.0f, 0.0f,
+						0.0f, 	 0.0f, 	0.5f, 0.0f,
+						0.0f, 	 0.0f, 	0.0f, 1.0f,
+					};*/
+		matrixLoc=glGetUniformLocation(texProgram, "matrix");
 			GLERR("glGetUniformLocation");
-		GLuint samplerLoc=glGetUniformLocation(texProgram, "samp");
+		samplerLoc=glGetUniformLocation(texProgram, "samp");
 			GLERR("glGetUniformLocation");
+		glBindTexture(GL_TEXTURE_2D, texture);
+			GLERR("glBindTexture");
 		
 		glUniformMatrix4fv(matrixLoc, 1, GL_FALSE, &rotate[0]);
 			GLERR("glUniformMatrix4f matrix");
@@ -662,14 +677,25 @@ int main(int argc, char **argv)
 
 		glBindBuffer(GL_ARRAY_BUFFER, gameScreenVBO);
 			GLERR("glBindBuffer");
+		glEnableVertexAttribArray(TEXCOORDS);
+		GLERR("glEnableVertexAttrib TEXCOORDS");
 		glVertexAttribPointer(VERTS, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*5, 0);
 			GLERR("glVertexAttribPointer VERTS");
-		glVertexAttribPointer(TEXCOORDS, 2, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*5, (void*)(sizeof(GLfloat)*2));
+		glVertexAttribPointer(TEXCOORDS, 2, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*5, (void*)(sizeof(GLfloat)*3));
 			GLERR("glVertexAttribPointer TEXCOORDS");
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
+		glDisableVertexAttribArray(TEXCOORDS);
+		glEnableVertexAttribArray(COLOURS);
 		SDL_GL_SwapWindow(window);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			GLERR("glClear");
 			
+	glBindTexture(GL_TEXTURE_2D, 0);
+		GLERR("glBindTexture");
+	glBindRenderbuffer(GL_RENDERBUFFER, rdb);
+		GLERR("glBindRenderBuffer");
+	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+		GLERR("glBindFrameBuffer");
 	}
 
 }
