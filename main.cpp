@@ -1,13 +1,14 @@
 #define GLERR(X) if(CheckGLError(X, __LINE__, __FILE__))return 1;
 #define SDLERR(X) SDLErrorAndDie(X, __LINE__, __FILE__)
-#define WINWIDTH 640
-#define WINHEIGHT 480
+#define WINWIDTH 512 
+#define WINHEIGHT 512
 
 #include "tankgame.h"
 
 const unsigned int VERTS=0;
 const unsigned int COLOURS=1;
 const unsigned int TEXCOORDS=2;
+float cubeSize=0.75f, cubeRotY=0.0f, cubeRotZ=0.0f;
 GLuint VBOs[numVBOs];
 GLuint simpleProgram, explosionProgram, texProgram;
 
@@ -54,7 +55,7 @@ int initSDL(SDL_Window **window)
 
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1); //double buffering on obviously
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3); 
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
 	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
 	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
@@ -86,6 +87,19 @@ void checkKeyboard(Tank *tank, bool *loop)
 		tank->rotate(5.0f);
 	if(key[SDL_SCANCODE_F])
 		tank->shoot();
+	if(key[SDL_SCANCODE_O])
+		cubeSize+=0.01f;
+	if(key[SDL_SCANCODE_P])
+		cubeSize-=0.01f;
+	if(key[SDL_SCANCODE_K])
+		cubeRotY-=1.0f;
+	if(key[SDL_SCANCODE_L])
+		cubeRotY+=1.0f;
+	if(key[SDL_SCANCODE_N])
+		cubeRotZ-=1.0f;
+	if(key[SDL_SCANCODE_M])
+		cubeRotZ+=1.0f;
+	
 
 }
 
@@ -502,6 +516,7 @@ void tickExplosions(list<Explosion*> *explosions)
 
 int initTextureDrawer(GLuint *gameScreenVBO)
 {
+	//				verts			texCoords
 	GLfloat gameScreenVerts[]={	-1.0f, -1.0f, 0.0f,	0.0f, 0.0f,
 					 1.0f, -1.0f, 0.0f,	1.0f, 0.0f,
 					-1.0f,  1.0f, 0.0f,	0.0f, 1.0f,
@@ -549,20 +564,19 @@ int main(int argc, char **argv)
 	//create a texture to bind to the framebuffer object
 	glGenTextures(1, &texture);
 		GLERR("glGenTextures");
+	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texture);
 		GLERR("glBindTexture");
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		GLERR("glTexParameteri");
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		GLERR("glTexParameteri");
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		GLERR("glTexParameteri");
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		GLERR("glTexParameteri");
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, WINWIDTH, WINHEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);	
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, WINWIDTH, WINHEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);	
 		GLERR("glTexImage2D");
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, 0);
 	//bind them together
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,  texture, 0);
 		GLERR("glFramebufferTexture2D");
@@ -646,56 +660,66 @@ int main(int argc, char **argv)
 		btick=SDL_GetTicks();
 		wait=(1000.0f/60.0f)-(btick-atick);
 		SDL_Delay(wait > 0 ? wait : 0);
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-			GLERR("glBindFramebuffer 0");
 		glBindRenderbuffer(GL_RENDERBUFFER, 0);
+			GLERR("glBindRenderBuffer");
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			GLERR("glBindFrameBuffer");
+		//glBindTexture(GL_TEXTURE_2D, texture);
+			GLERR("glBindTexture");
 
 		glUseProgram(texProgram);
 			GLERR("glUSeProgram");
-		float c=cos(PI/4);
-		float s=sin(PI/4);
-		const GLfloat rotate[]={	c, 	-s, 	0.0f, 0.0f,
-						s, 	 c, 	0.0f, 0.0f,
-						0.0f, 	 0.0f, 	1.0f, 0.0f,
-						0.0f, 	 0.0f, 	0.0f, 1.0f,
-					};/*
-		const GLfloat rotate[]={	0.5f, 	 0.0f, 	0.0f, 0.0f,
-						0.0f, 	 0.5f, 	0.0f, 0.0f,
-						0.0f, 	 0.0f, 	0.5f, 0.0f,
-						0.0f, 	 0.0f, 	0.0f, 1.0f,
-					};*/
+		float cy=cos(RADS(cubeRotY));
+		float sy=sin(RADS(cubeRotY));
+		GLfloat scale[]= {	cubeSize, 0.0f, 0.0f, 0.0f,
+					0.0f, cubeSize, 0.0f, 0.0f,
+					0.0f, 0.0f, cubeSize, 0.0f,
+					0.0f, 0.0f, 0.0f, 1.0f,
+				};
+		GLfloat rotateY[]={	  cy, 	 0.0f, 	  sy, 0.0f,
+					0.0f, 	 1.0f, 	0.0f, 0.0f,
+					0.0f, 	 0.0f, 	  cy, 0.0f,
+					 -sy, 	 0.0f, 	0.0f, 1.0f,
+					};
+		float cz=cos(RADS(cubeRotZ));
+		float sz=sin(RADS(cubeRotZ));
+		GLfloat rotateZ[]={	cz, 	-sz, 	0.0f, 0.0f,
+					sz, 	 cz, 	0.0f, 0.0f,
+					0.0f, 	 0.0f, 	1.0f, 0.0f,
+					0.0f, 	 0.0f, 	0.0f, 1.0f,
+					};
+		multMatrices4x4(scale, rotateY);
+		multMatrices4x4(rotateY, rotateZ);
+
 		matrixLoc=glGetUniformLocation(texProgram, "matrix");
 			GLERR("glGetUniformLocation");
 		samplerLoc=glGetUniformLocation(texProgram, "samp");
 			GLERR("glGetUniformLocation");
-		glBindTexture(GL_TEXTURE_2D, texture);
-			GLERR("glBindTexture");
 		
-		glUniformMatrix4fv(matrixLoc, 1, GL_FALSE, &rotate[0]);
+		glUniformMatrix4fv(matrixLoc, 1, GL_FALSE, &rotateZ[0]);
 			GLERR("glUniformMatrix4f matrix");
-		glUniform1i(samplerLoc, sampler);
 
 		glBindBuffer(GL_ARRAY_BUFFER, gameScreenVBO);
-			GLERR("glBindBuffer");
 		glEnableVertexAttribArray(TEXCOORDS);
-		GLERR("glEnableVertexAttrib TEXCOORDS");
 		glVertexAttribPointer(VERTS, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*5, 0);
-			GLERR("glVertexAttribPointer VERTS");
 		glVertexAttribPointer(TEXCOORDS, 2, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*5, (void*)(sizeof(GLfloat)*3));
-			GLERR("glVertexAttribPointer TEXCOORDS");
+			GLERR("Attribs");
+
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 		glDisableVertexAttribArray(TEXCOORDS);
 		glEnableVertexAttribArray(COLOURS);
 		SDL_GL_SwapWindow(window);
+		glClearColor(0.0f, 0.5f, 1.0f, 1.0f);
+			GLERR("glClearColor");
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			GLERR("glClear");
 			
-	glBindTexture(GL_TEXTURE_2D, 0);
+	//glBindTexture(GL_TEXTURE_2D, 0);
 		GLERR("glBindTexture");
-	glBindRenderbuffer(GL_RENDERBUFFER, rdb);
-		GLERR("glBindRenderBuffer");
 	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
 		GLERR("glBindFrameBuffer");
+	glBindRenderbuffer(GL_RENDERBUFFER, rdb);
+		GLERR("glBindRenderBuffer");
 	}
 
 }
