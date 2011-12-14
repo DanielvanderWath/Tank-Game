@@ -1,5 +1,3 @@
-#define GLERR(X) if(CheckGLError(X, __LINE__, __FILE__))return 1;
-#define SDLERR(X) SDLErrorAndDie(X, __LINE__, __FILE__)
 #define WINWIDTH 512 
 #define WINHEIGHT 512
 
